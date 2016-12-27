@@ -1,0 +1,15 @@
+{
+    "name": "plopcom/plopxy-txt2img",
+    "description": "a proxy to build images containing text only",
+    "license": "GPL",
+    "authors": [
+        {
+            "name": "Gaetan Janssens",
+            "email": "janssensgaetan@gmail.com"
+        }
+    ],
+    "require": {
+        "michelf/php-markdown": "^1.7",
+        "symfony/console": "^3.2"
+    }
+}
