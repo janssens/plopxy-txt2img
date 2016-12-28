@@ -1,15 +1,16 @@
-#Plopxy Txt2Image
+![](title.png)
 
 ***
 
 ##Requirement
 
-* php cli version > 5 (php7 OK)
+* php-cli version > 5 (php7 OK)
 * composer https://getcomposer.org/
+* php-imagick (php5-imagick for php5)
 
 ##Install
 
-	$composer install 
+	$ php composer.phar install 
 
 ##Usage
 
@@ -18,21 +19,21 @@ OR
 
 	$ php application.php text2img [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [--] <text>
 
-###<text> 
+###text
 Is the only required param.
 It can be a simple word, a markdown syntax or a file containing markdown
 
 	$ sh text2img.sh "foo bar" > /tmp/foobar.png
 
-[foobar](doc/images/foobar.png)
+![foobar](doc/images/foobar.png)
 
 	$ sh text2imag.sh "*foo*<br>bar" > /tmp/foo_bar_.png
 
-[foo_bar_](doc/images/foo_bar_.png)
+![foo_bar_](doc/images/foo_bar_.png)
 
 	$ sh text2imag.sh filename.md > /tmp/finame.md.png
 
-[filename.md](doc/images/filename.md.png)
+![filename.md](doc/images/filename.md.png)
 
 ###[STYLE]
 A json array of style parameters
@@ -50,13 +51,15 @@ A json array of style parameters
 * **text-transform** : uppercase, lowercase string
 * **text-decoration** : underline, uperline or line trought
 
+####exemples
+
 	$ sh txt2img.sh Plopxy-Txt2img -s '{"color":"purple","font":"doc/font/beyond_the_mountains.ttf","font-size":"60px","padding-top":"20px"}' -o doc/images/font
 
-[Plopxy-Txt2img](doc/images/font.png)
+![Plopxy-Txt2img](doc/images/font.png)
 
 	$ sh txt2img.sh "best fit<br>multiple lines" -s '{"color":"white","background-color":"red","padding":"10px","text-transform":"uppercase","font-size":"fit","max-width":"200px","font-family":"Helvetica"}' -o doc/images/bestfit
 
-[bestfit](doc/images/bestfit.png)
+![bestfit](doc/images/bestfit.png)
 
 ###[OUTPUT]
 Set the output file. If no extension is given, or if the given is not matching format, it will be added.
