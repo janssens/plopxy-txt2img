@@ -30,23 +30,23 @@ class Txt2ImgCommand extends Command
 	private $output;
 	private $input;
 
-    protected function configure()
-    {
-        $this
-        ->setName('txt2img')
-        ->setDescription('make an img from txt')
-        ->setHelp("This command allows you to create an img such as a png containing a given text...")
-        ->addArgument('text', InputArgument::REQUIRED, 'The text or text file')
-        ->addOption('style','s',InputOption::VALUE_OPTIONAL,'The style','{}')
-        // ->addOption('verbose','v',InputOption::VALUE_OPTIONAL,'verbose',false)
-        ->addOption('format','f',InputOption::VALUE_OPTIONAL,'Output Format','png')
-        ->addOption('output','o',InputOption::VALUE_OPTIONAL,'Output file','')
-        ->addOption('fontSizeMax',NULL,InputOption::VALUE_OPTIONAL,'Max font size','');
+	private $isUl;
 
-    }
+	protected function configure()
+	{
+		$this
+		->setName('txt2img')
+		->setDescription('make an img from txt')
+		->setHelp("This command allows you to create an img such as a png containing a given text...")
+		->addArgument('text', InputArgument::REQUIRED, 'The text or text file')
+		->addOption('style','s',InputOption::VALUE_OPTIONAL,'The style','{}')
+		->addOption('format','f',InputOption::VALUE_OPTIONAL,'Output Format','png')
+		->addOption('output','o',InputOption::VALUE_OPTIONAL,'Output file','')
+		->addOption('fontSizeMax',NULL,InputOption::VALUE_OPTIONAL,'Max font size','');
+	}
 
-    protected function execute(InputInterface $input, OutputInterface $output)
-    {
+	protected function execute(InputInterface $input, OutputInterface $output)
+	{
 		// TODO Justification (gauche/droite/centré)
 
 		$this->default_params = array(
@@ -61,6 +61,7 @@ class Txt2ImgCommand extends Command
 
 		$this->output = $output;
 		$this->input = $input;
+		$this->isUl = false;
 
 	    $style = $input->getOption('style');
 
@@ -98,7 +99,7 @@ class Txt2ImgCommand extends Command
         $html = Markdown::defaultTransform($text);
         $html = str_replace("\n\n", "\n", $html);
         if ($input->getOption('verbose'))
-	    	$output->writeln(['============','Html: '.$html]);
+	    	$output->writeln(['============','Html: '.$html,'============']);
 
 		$transparent = new ImagickPixel('none'); // Transparent
 
@@ -162,52 +163,63 @@ class Txt2ImgCommand extends Command
     protected function drawDomNode(DOMNode $domNode){
 	    foreach ($domNode->childNodes as $node)
 	    {
-	        if($node->hasChildNodes()) {
-	           $this->drawDomNode($node);
-	        }else{
-	        	if ($node->nodeType == XML_TEXT_NODE && $node->nodeValue){
-	        		$parentNode = $node->parentNode->nodeName;
-	        		
-	        		if ($this->input->getOption('verbose'))
-		        		echo $parentNode;
-	        		$txt = $node->nodeValue;
+			if($node->hasChildNodes()) {
+				$this->drawDomNode($node);
+			}else{
 
-	        		$local_params = array();
-	        		if ($parentNode == "strong")
+				if (!$this->isUl && strpos($node->getNodePath(),"ul")){
+					// echo "enter ul\n";
+					$this->isUl = true;
+					$this->jumpLine($this->default_params);
+				}
+				if ($this->isUl && !strpos( $node->getNodePath(), "ul")){
+					// echo "\nleave ul\n";
+					$this->isUl = false;
+					// $this->jumpLine($this->default_params);
+				}
+
+				if ($node->nodeType == XML_TEXT_NODE && $node->nodeValue){
+					$parentNode = $node->parentNode->nodeName;
+					
+					if ($this->input->getOption('verbose'))
+						echo $parentNode;
+					$txt = $node->nodeValue;
+
+					$local_params = array();
+					if ($parentNode == "strong")
 						$local_params["font-weight"] = 800;
 					if ($parentNode == "em")
 						$local_params["font-style"] = "italic";
 					if ($parentNode == "sup" || $parentNode == "sub")
 						$local_params["font-size"] = intval(intval($this->default_params["font-size"])/2)."px";
-					if ($parentNode == "li")
-						$txt = "- ".$txt; //$draw->circle($originX, $originY, $endX, $endY);
+					if ($parentNode == "li"){
+						$txt = " ".$txt;
+						$circleSize = intval(intval($this->default_params["font-size"])/10);
+						$linecenter = intval(intval($this->default_params["font-size"])/2);
+						// echo "circle(".($this->x+intval($circleSize/2)).",".($this->y+intval($circleSize/2)+$linecenter).",".($this->x+$circleSize).",".($this->y + $linecenter +$circleSize).")";
+						$this->draw->circle($this->x+intval($circleSize/2), $this->y+intval($circleSize/2)+$linecenter, $this->x+$circleSize , $this->y + $linecenter + $circleSize);
+					}
 					$this->drawTxt($txt,array_merge($this->default_params,$local_params));
-	        	}else{
-	        		if ($node->nodeName == "br"){
-	        			if (isset($params['line-height']))
-							$this->y = $this->y +  str_replace("px", "", $params['line-height']);
-						else
-							$this->y = $this->y +  $this->nextY;
-						$this->x = $this->minx;
-	        		}
-	        	}
+				}
+				if ($node->nodeName == "br"){
+					$this->jumpLine(array_merge($this->default_params,$local_params));
+				}
+			}
+		}
+	}
 
-	        }
-	    }    
-    }
+	protected function drawTxt($text,$params = array()){
+		if ($text){
+			$specific = array_diff($params, $this->default_params);
+			
+			
+			$params = $this->checkParams($params);
 
-    protected function drawTxt($text,$params = array()){
-    	if ($text){
-    		$specific = array_diff($params, $this->default_params);
-	    	
-    		
-    		$params = $this->checkParams($params);
-
-    		if (isset($params['font-weight']))
-			    $this->draw->setFontWeight($params["font-weight"]);
+			if (isset($params['font-weight']))
+				$this->draw->setFontWeight($params["font-weight"]);
 
 			if (isset($params['font-family']))
-			    $this->draw->setFontFamily($params["font-family"]);
+				$this->draw->setFontFamily($params["font-family"]);
 
 			if (isset($params['font']))
 				$this->draw->setFont($params["font"]);
@@ -344,11 +356,7 @@ class Txt2ImgCommand extends Command
 					$this->draw->setFontSize(intval($params["font-size"]));
 				}
 				if ($key > 0){
-					if (isset($params['line-height']))
-						$this->y = $this->y +  str_replace("px", "", $params['line-height']);
-					else
-						$this->y = $this->y +  $this->nextY;
-					$this->x = $this->minx;
+					$this->jumpLine($params);
 				}
 				if ($line){ //something to draw
 					if ($this->input->getOption('verbose')){
@@ -363,6 +371,10 @@ class Txt2ImgCommand extends Command
 					$this->draw->annotation($this->x , $this->y, $line);
 					$this->x = $this->x + intval($metrics["textWidth"]);
 					$this->nextY = intval($metrics["textHeight"]);
+				}else{
+					if ($this->input->getOption('verbose')){
+						echo "\n";
+					}
 				}
 				if (isset($params['text-align']) && $params['text-align']=='left' || !isset($params['text-align'])){
 					if ($this->x > $this->maxwidth)
@@ -371,23 +383,30 @@ class Txt2ImgCommand extends Command
 				if (($this->y + $this->nextY) > $this->maxheight)
 					$this->maxheight = $this->y + $this->nextY;
 			}
-		    
-    	}
-    }
+		}
+	}
 
-    protected function checkParams($params){
-    	if (isset($params['font-weight'])){
-    		if (!is_int($params['font-weight'])){
-	    		$this->output->writeln("font-weight should be a integer 100-900. using 500.");
-	    		$params['font-weight'] = 500;
-	    	} else if ($params['font-weight'] > 900 || $params['font-weight'] < 100) {
-	    		$this->output->writeln("font-weight should be a integer 100-900. using 500.");
-	    		$params['font-weight'] = 500;
-	    	}
-    	}
-    	if (isset($params['font-size'])){
-    		
-    	}
-    	return $params;
-    } 
+	protected function checkParams($params){
+		if (isset($params['font-weight'])){
+			if (!is_int($params['font-weight'])){
+				$this->output->writeln("font-weight should be a integer 100-900. using 500.");
+				$params['font-weight'] = 500;
+			} else if ($params['font-weight'] > 900 || $params['font-weight'] < 100) {
+				$this->output->writeln("font-weight should be a integer 100-900. using 500.");
+				$params['font-weight'] = 500;
+			}
+		}
+		if (isset($params['font-size'])){
+			
+		}
+		return $params;
+	} 
+
+	protected function jumpLine($params){
+		if (isset($params['line-height']))
+			$this->y = $this->y +  str_replace("px", "", $params['line-height']);
+		else
+			$this->y = $this->y +  $this->nextY;
+		$this->x = $this->minx;
+	}
 }
