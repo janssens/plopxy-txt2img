@@ -14,10 +14,10 @@
 
 ##Usage
 
-	$ sh text2img.sh [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [--] <text>
+	$ sh text2img.sh [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [-w|--wrap] [--] <text>
 OR
 
-	$ php application.php text2img [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [--] <text>
+	$ php application.php text2img [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [-w|--wrap] [--] <text>
 
 ###text
 Is the only required param.
@@ -61,9 +61,10 @@ A json array of style parameters
 
 ![bestfit](doc/images/bestfit.png)
 
-###wrap/w
+###[-w|--wrap]
 
-If set, text will be wrapped, meaning jump a line on overflow. You should use style **max-height** or **background-image** in order to fix the width of the output image.
+If set, text will be wrapped, meaning automatic line return preventing word crop. You should use style **max-height** or **background-image** in order to fix the width of the output image.
+**/!\ will not work for text-align : right **
 
 	$ sh txt2img.sh test/test2.md -s '{"padding":"10px","font-size":"20","max-width":"400px"}' -o doc/images/wrap.png -w
 
@@ -98,8 +99,10 @@ verbose
 
 ## TO DO // Ideas
 
+* wrap on text-align right
 * Combine text-decoration
 * Support of text-align center 
+* Support of text-align justify 
 * Font-size for h1, h2 and h3
 * support list-style for ul
 * neasted UL ?!!
