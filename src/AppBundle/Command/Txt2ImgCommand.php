@@ -111,23 +111,25 @@ class Txt2ImgCommand extends Command
 		$this->draw->setGravity(\Imagick::GRAVITY_NORTHWEST);
 		$this->draw->setStrokeAntialias(true);
 		$this->draw->setTextAntialias(true);
-        
-        $doc = new DOMDocument();
+		
+		$doc = new DOMDocument();
 		$doc->loadHTML($html);
 
 		$this->drawDomNode($doc);
 
 		$format = $input->getOption("format");
 
-	   	if (isset($this->default_params["padding-right"]))
-	    	$this->maxwidth = $this->maxwidth + intval($this->default_params["padding-right"]);
+		if (isset($this->default_params["padding-right"]))
+			$this->maxwidth = $this->maxwidth + intval($this->default_params["padding-right"]);
 
-	    $imagick = new \Imagick();
-	    if (isset($this->default_params["background-image"])){
-	    	$filename = substr($this->default_params["background-image"], 4,-1);
-	    	$imagick->readImage($filename);
-	    }else{
-	    	if (isset($this->default_params['background-color']))
+		$imagick = new \Imagick();
+		if (isset($this->default_params["background-image"])){
+			$filename = $this->default_params["background-image"];
+			if (strpos($filename, 'url(')==1)
+				$filename = substr($filename, 4,-1);
+			$imagick->readImage($filename);
+		}else{
+			if (isset($this->default_params['background-color']))
 				$imagick->newImage($this->maxwidth, $this->maxheight, new ImagickPixel($this->default_params['background-color']));
 			else {
 				if ($format == "png")
@@ -312,7 +314,9 @@ class Txt2ImgCommand extends Command
 			if ($params["font-size"] == "fit" || $this->input->getOption('wrap')){
 				$maxw = 0;
 				if (isset($params["background-image"])){
-	    			$filename = substr($params["background-image"], 4,-1);
+					$filename = $this->default_params["background-image"];
+					if (strpos($filename, 'url(')==1)
+						$filename = substr($filename, 4,-1);
 					$image = new \Imagick($filename); 
 					$d = $image->getImageGeometry(); 
 					$maxw = $d['width']; 
