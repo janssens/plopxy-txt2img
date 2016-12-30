@@ -42,7 +42,8 @@ class Txt2ImgCommand extends Command
 		->addOption('style','s',InputOption::VALUE_OPTIONAL,'The style','{}')
 		->addOption('format','f',InputOption::VALUE_OPTIONAL,'Output Format','png')
 		->addOption('output','o',InputOption::VALUE_OPTIONAL,'Output file','')
-		->addOption('fontSizeMax',NULL,InputOption::VALUE_OPTIONAL,'Max font size','');
+		->addOption('fontSizeMax',NULL,InputOption::VALUE_OPTIONAL,'Max font size','')
+		->addOption('wrap','w',InputOption::VALUE_NONE,'should we wrap');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -308,7 +309,7 @@ class Txt2ImgCommand extends Command
 				$this->maxwidth =  $this->minx + intval($params["padding-right"]);
 			}
 
-			if ($params["font-size"] == "fit"){
+			if ($params["font-size"] == "fit" || $this->input->getOption('wrap')){
 				$maxw = 0;
 				if (isset($params["background-image"])){
 	    			$filename = substr($params["background-image"], 4,-1);
@@ -359,18 +360,48 @@ class Txt2ImgCommand extends Command
 					$this->jumpLine($params);
 				}
 				if ($line){ //something to draw
-					if ($this->input->getOption('verbose')){
-						echo " > ";
-		    			echo $line;
-	    				if ($specific)
-				    		echo json_encode($specific);
-	    				echo " > at ".$this->x." ".$this->y;
-	    				echo "\n";
-	    			}
-					$metrics = $image->queryFontMetrics($this->draw, $line);
-					$this->draw->annotation($this->x , $this->y, $line);
-					$this->x = $this->x + intval($metrics["textWidth"]);
-					$this->nextY = intval($metrics["textHeight"]);
+					if ($this->input->getOption('wrap') && $maxw){
+						$metrics = $image->queryFontMetrics($this->draw, " ");
+						$spacewidth = intval($metrics["textWidth"]);
+						$this->nextY = intval($metrics["textHeight"]);
+						if ($this->input->getOption('verbose')){
+							echo "spacewidth : ".$spacewidth."\n";
+							echo " > ";
+							if ($specific)
+								echo json_encode($specific);
+						}
+						foreach (explode(' ', $line) as $key => $world) {
+							$metrics = $image->queryFontMetrics($this->draw, $world);
+							if ($this->x + intval($metrics["textWidth"])>$maxw){
+								$this->jumpLine($params);
+								if ($this->input->getOption('verbose'))
+									echo "Overflow, jumpLine\n";
+							}
+							$this->draw->annotation($this->x , $this->y, $world);
+							$this->x = $this->x + intval($metrics["textWidth"]) + $spacewidth;
+							if ($this->input->getOption('verbose')){
+								echo $world;
+								echo " > at ".$this->x." ".$this->y."\n";
+							}
+						}
+						if ($this->input->getOption('verbose')){
+							echo "\n";
+						}
+					}else{
+						if ($this->input->getOption('verbose')){
+							echo " > ";
+							echo $line;
+							if ($specific)
+								echo json_encode($specific);
+							echo " > at ".$this->x." ".$this->y;
+							echo "\n";
+						}
+						$metrics = $image->queryFontMetrics($this->draw, $line);
+						$this->draw->annotation($this->x , $this->y, $line);
+						$this->x = $this->x + intval($metrics["textWidth"]);
+						$this->nextY = intval($metrics["textHeight"]);
+					}
+
 				}else{
 					if ($this->input->getOption('verbose')){
 						echo "\n";

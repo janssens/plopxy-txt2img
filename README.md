@@ -61,7 +61,16 @@ A json array of style parameters
 
 ![bestfit](doc/images/bestfit.png)
 
+###wrap/w
+
+If set, text will be wrapped, meaning jump a line on overflow. You should use style **max-height** or **background-image** in order to fix the width of the output image.
+
+	$ sh txt2img.sh test/test2.md -s '{"padding":"10px","font-size":"20","max-width":"400px"}' -o doc/images/wrap.png -w
+
+![textwap](doc/images/wrap.png)
+
 ###[OUTPUT]
+
 Set the output file. If no extension is given, or if the given is not matching format, it will be added.
 If no output is given, image is returned to standard output.
 
@@ -70,20 +79,25 @@ If no output is given, image is returned to standard output.
 
 
 ###[FORMAT]
+
 Default is png, can be set to jpg or gif
+
 	$ sh text2img.sh "test gif" -f gif -o web/images/tmp
 	Output file: web/images/tmp.gif
 
 
 ###[FONTSIZEMAX]
+
 when using font-size "fit", fontsizemax tell a limit of font-size to be used
 
 	$ sh txt2img.sh toto -s '{"padding":"10px","font-size":"fit","max-width":"300px"}' -o ./web/images/test -v --fontSizeMax 80
 
 ###[-v|--verbose]
+
 verbose
 
 ## TO DO // Ideas
+
 * Combine text-decoration
 * Support of text-align center 
 * Font-size for h1, h2 and h3
