@@ -99,7 +99,7 @@ class Txt2ImgCommand extends Command
 	 	if ($input->getOption('verbose'))
 	    	$output->writeln(['============','Text: '.$text]);
         $html = Markdown::defaultTransform($text);
-        $html = str_replace("\n\n", "\n", $html);
+//        $html = str_replace("\n\n", "<br>\n", $html);
         if ($input->getOption('verbose'))
 	    	$output->writeln(['============','Html: '.$html,'============']);
 
@@ -269,6 +269,9 @@ class Txt2ImgCommand extends Command
 					case 'right':
 						$this->draw->setTextAlignment(\Imagick::ALIGN_RIGHT);
 						break;
+                    case 'justify':
+                        $this->draw->setTextAlignment(\Imagick::ALIGN_LEFT);
+                        break;
 					default:
 					case 'left':
 						$this->draw->setTextDecoration(\Imagick::ALIGN_LEFT);
@@ -376,19 +379,63 @@ class Txt2ImgCommand extends Command
 							if ($specific)
 								echo json_encode($specific);
 						}
+						if ($params['text-align'] == 'justify'){
+						    $myx = $this->minx;
+						    $justify_line_index = 0;
+						    $justify_line_words_count = 0;
+						    $justify_line_words_total_length = 0;
+                            $justify_spacewidth = array();
+                            foreach (explode(' ', $line) as $key => $world) {
+                                $metrics = $image->queryFontMetrics($this->draw, $world);
+                                if ($myx + intval($metrics["textWidth"])>$maxw){
+                                    $justify_spacewidth[$justify_line_index] = (($maxw - $justify_line_words_total_length) / ($justify_line_words_count - 1));
+                                    $myx = $this->minx;
+                                    if ($this->input->getOption('verbose'))
+                                        echo "Line ".$justify_line_index.", ".$justify_line_words_count." words for a total length of ".$justify_line_words_total_length."px => spaces are ".$justify_spacewidth[$justify_line_index]."px large\n";
+                                    $justify_line_index++;
+                                    $justify_line_words_total_length = 0;
+                                    $justify_line_words_count = 0;
+                                }
+                                $myx += intval($metrics["textWidth"]) + $spacewidth;
+                                $justify_line_words_count++;
+                                $justify_line_words_total_length += intval($metrics["textWidth"]);
+                            }
+                            $justify_spacewidth[$justify_line_index+1] = $spacewidth;
+                        }
+                        $line_count = 0;
+						$justify_space_buffer = 0;
+                        $justify_line_words_count = 0;
 						foreach (explode(' ', $line) as $key => $world) {
 							$metrics = $image->queryFontMetrics($this->draw, $world);
-							if ($this->x + intval($metrics["textWidth"])>$maxw){
-								$this->jumpLine($params);
-								if ($this->input->getOption('verbose'))
-									echo "Overflow, jumpLine\n";
+							if ($this->x + intval($metrics["textWidth"])>$maxw+$justify_spacewidth[$line_count]+1){
+								if ($this->input->getOption('verbose')){
+                                    echo "   >>>   Overflow, jumpLine (".($this->x + intval($metrics["textWidth"])).">".$maxw.")\n";
+                                }
+                                $this->jumpLine($params);
+                                $line_count++;
+                                $justify_line_words_count = 0;
+                                $justify_space_buffer = 0;
 							}
+                            if (!isset($justify_spacewidth[$line_count]))
+                                $justify_spacewidth[$line_count] = $spacewidth;
 							$this->draw->annotation($this->x , $this->y, $world);
-							$this->x = $this->x + intval($metrics["textWidth"]) + $spacewidth;
-							if ($this->input->getOption('verbose')){
-								echo $world;
-								echo " > at ".$this->x." ".$this->y."\n";
-							}
+                            if ($this->input->getOption('verbose')){
+                                echo $world;
+                                echo " > at ".$this->x." ".$this->y."\n";
+                            }
+							$this->x += intval($metrics["textWidth"]);
+                            $justify_space_buffer += $justify_spacewidth[$line_count]-intval($justify_spacewidth[$line_count]);
+                            $justify_line_words_count++;
+                            if ($this->input->getOption('verbose')){
+                                echo "space buffer ".$justify_space_buffer."\n";
+                                echo "space width ".(intval($justify_spacewidth[$line_count])+intval($justify_space_buffer))."\n";
+                            }
+
+                            $this->x += intval($justify_spacewidth[$line_count])+intval($justify_space_buffer);
+
+                            if (intval($justify_space_buffer)>0){
+                                $justify_space_buffer = $justify_space_buffer - intval($justify_space_buffer);
+                            }
 						}
 						if ($this->input->getOption('verbose')){
 							echo "\n";
