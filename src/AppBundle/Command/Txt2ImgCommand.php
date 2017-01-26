@@ -42,6 +42,7 @@ class Txt2ImgCommand extends Command
 		->addOption('style','s',InputOption::VALUE_OPTIONAL,'The style','{}')
 		->addOption('format','f',InputOption::VALUE_OPTIONAL,'Output Format','png')
 		->addOption('output','o',InputOption::VALUE_OPTIONAL,'Output file','')
+		->addOption('encoding','e',InputOption::VALUE_OPTIONAL,'Encoding','UTF-8')
 		->addOption('fontSizeMax',NULL,InputOption::VALUE_OPTIONAL,'Max font size','')
 		->addOption('wrap','w',InputOption::VALUE_NONE,'should we wrap');
 	}
@@ -94,7 +95,7 @@ class Txt2ImgCommand extends Command
 			$text = fread($handle, filesize($filename));
 			fclose($handle);
 	    }
-	 
+
 	 	if ($input->getOption('verbose'))
 	    	$output->writeln(['============','Text: '.$text]);
         $html = Markdown::defaultTransform($text);
@@ -112,8 +113,9 @@ class Txt2ImgCommand extends Command
 		$this->draw->setStrokeAntialias(true);
 		$this->draw->setTextAntialias(true);
 		
-		$doc = new DOMDocument();
-		$doc->loadHTML($html);
+		$doc = new DOMDocument('1.0', $input->getOption('encoding'));
+        $html = mb_convert_encoding($html, 'HTML-ENTITIES', $input->getOption('encoding'));
+        $doc->loadHTML($html);
 
 		$this->drawDomNode($doc);
 

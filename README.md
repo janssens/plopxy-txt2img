@@ -23,15 +23,15 @@ OR
 Is the only required param.
 It can be a simple word, a markdown syntax or a file containing markdown
 
-	$ sh text2img.sh "foo bar" > /tmp/foobar.png
+	$ sh txt2img.sh "foo bar" > /tmp/foobar.png
 
 ![foobar](doc/images/foobar.png)
 
-	$ sh text2imag.sh "*foo*<br>bar" > /tmp/foo_bar_.png
+	$ sh txt2imag.sh "*foo*<br>bar" > /tmp/foo_bar_.png
 
 ![foo_bar_](doc/images/foo_bar_.png)
 
-	$ sh text2imag.sh filename.md > /tmp/finame.md.png
+	$ sh txt2imag.sh filename.md > /tmp/finame.md.png
 
 ![filename.md](doc/images/filename.md.png)
 
