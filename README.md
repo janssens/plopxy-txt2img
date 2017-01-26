@@ -47,7 +47,7 @@ A json array of style parameters
 * **padding** : space between image border and text. **padding-left**, **padding-right**, **padding-to**, **padding-bottom** 
 * **max-width** : width of the output image. if font-size is not set to "fit" the content could be cropped
 * **max-height** : height of the output image. the content could be cropped.
-* **text-align** : align content LEFT ,RIGHT or JUSTIFY. To use text-align:justify you should add the **wrap** param
+* **text-align** : align content LEFT ,RIGHT, CENTER or JUSTIFY. To use text-align:justify or center you should add the **wrap** param
 * **text-transform** : uppercase, lowercase string
 * **text-decoration** : underline, uperline or line trought
 
@@ -69,6 +69,14 @@ If set, text will be wrapped, meaning automatic line return preventing word crop
 	$ sh txt2img.sh test/test2.md -s '{"padding":"10px","font-size":"20","max-width":"400px"}' -o doc/images/wrap.png -w
 
 ![textwap](doc/images/wrap.png)
+
+    $ sh txt2img.sh doc/fauxtxt.md -s '{"max-width":300,"padding":"10px","padding-top":"20px","text-align":"justify"}' -o doc/images/justify.png -w 
+
+![justify](doc/images/justify.png)
+
+    $ sh txt2img.sh -v doc/fauxtxt.md -o doc/images/center.png -s '{"max-width":300,"padding":"10px","padding-top":"20px","text-align":"center","background-color":"black","color":"white"}' -w
+    
+![center](doc/images/center.png)
 
 ###[OUTPUT]
 
@@ -101,7 +109,6 @@ verbose
 
 * wrap on text-align right
 * Combine text-decoration
-* Support of text-align center 
 * Font-size for h1, h2 and h3
 * support list-style for ul
 * neasted UL ?!!

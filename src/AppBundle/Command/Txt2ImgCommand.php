@@ -264,7 +264,7 @@ class Txt2ImgCommand extends Command
 			if (isset($params['text-align'])){
 				switch ($params['text-align']) {
 					case 'center':
-						$this->draw->setTextDecoration(\Imagick::ALIGN_CENTER);
+						$this->draw->setTextDecoration(\Imagick::ALIGN_LEFT);
 						break;
 					case 'right':
 						$this->draw->setTextAlignment(\Imagick::ALIGN_RIGHT);
@@ -379,19 +379,28 @@ class Txt2ImgCommand extends Command
 							if ($specific)
 								echo json_encode($specific);
 						}
-						if ($params['text-align'] == 'justify'){
+						if ($params['text-align'] == 'justify'||$params['text-align'] == 'center'){
 						    $myx = $this->minx;
 						    $justify_line_index = 0;
 						    $justify_line_words_count = 0;
 						    $justify_line_words_total_length = 0;
                             $justify_spacewidth = array();
+                            $center_index = array();
                             foreach (explode(' ', $line) as $key => $world) {
                                 $metrics = $image->queryFontMetrics($this->draw, $world);
                                 if ($myx + intval($metrics["textWidth"])>$maxw){
-                                    $justify_spacewidth[$justify_line_index] = (($maxw - $justify_line_words_total_length) / ($justify_line_words_count - 1));
+                                    if ($params['text-align'] == 'justify')
+                                        $justify_spacewidth[$justify_line_index] = (($maxw - $justify_line_words_total_length) / ($justify_line_words_count - 1));
+                                    else
+                                        $justify_spacewidth[$justify_line_index] = $spacewidth;
+                                    $center_index[$justify_line_index] = intval(($maxw - $justify_line_words_total_length) / 2);
                                     $myx = $this->minx;
-                                    if ($this->input->getOption('verbose'))
+                                    if ($this->input->getOption('verbose')&&$params['text-align'] == 'justify')
                                         echo "Line ".$justify_line_index.", ".$justify_line_words_count." words for a total length of ".$justify_line_words_total_length."px => spaces are ".$justify_spacewidth[$justify_line_index]."px large\n";
+                                    if ($this->input->getOption('verbose')&&$params['text-align'] == 'center'){
+                                        echo "Line ".$justify_line_index.", ".$justify_line_words_count." words for a total length of ".$justify_line_words_total_length."px => ";
+                                        echo "should start at ".$center_index[$justify_line_index]."\n";
+                                    }
                                     $justify_line_index++;
                                     $justify_line_words_total_length = 0;
                                     $justify_line_words_count = 0;
@@ -399,25 +408,41 @@ class Txt2ImgCommand extends Command
                                 $myx += intval($metrics["textWidth"]) + $spacewidth;
                                 $justify_line_words_count++;
                                 $justify_line_words_total_length += intval($metrics["textWidth"]);
+                                if ($params['text-align'] == 'center')
+                                    $justify_line_words_total_length += $spacewidth;
                             }
+                            if ($params['text-align'] == 'center')
+                                $center_index[$justify_line_index] = intval(($maxw - $justify_line_words_total_length) / 2);
+                            if ($this->input->getOption('verbose')&&$params['text-align'] == 'center'){
+                                echo "Line ".$justify_line_index.", ".$justify_line_words_count." words for a total length of ".$justify_line_words_total_length."px => ";
+                                echo "should start at ".$center_index[$justify_line_index]."\n";
+                            }
+
                             $justify_spacewidth[$justify_line_index+1] = $spacewidth;
                         }
                         $line_count = 0;
 						$justify_space_buffer = 0;
                         $justify_line_words_count = 0;
+                        $computed_spacewidth = $spacewidth;
+                        if ($params['text-align'] == 'center')
+                            $this->x += $center_index[$line_count];
 						foreach (explode(' ', $line) as $key => $world) {
 							$metrics = $image->queryFontMetrics($this->draw, $world);
-							if ($this->x + intval($metrics["textWidth"])>$maxw+$justify_spacewidth[$line_count]+1){
+							if ($this->x + intval($metrics["textWidth"])>$maxw+$computed_spacewidth+1){
 								if ($this->input->getOption('verbose')){
                                     echo "   >>>   Overflow, jumpLine (".($this->x + intval($metrics["textWidth"])).">".$maxw.")\n";
                                 }
                                 $this->jumpLine($params);
                                 $line_count++;
+                                if ($params['text-align'] == 'center')
+                                    $this->x += $center_index[$line_count];
                                 $justify_line_words_count = 0;
                                 $justify_space_buffer = 0;
 							}
                             if (!isset($justify_spacewidth[$line_count]))
                                 $justify_spacewidth[$line_count] = $spacewidth;
+                            if (!isset($center_index[$line_count]))
+                                $center_index[$line_count] = 0;
 							$this->draw->annotation($this->x , $this->y, $world);
                             if ($this->input->getOption('verbose')){
                                 echo $world;
@@ -426,12 +451,14 @@ class Txt2ImgCommand extends Command
 							$this->x += intval($metrics["textWidth"]);
                             $justify_space_buffer += $justify_spacewidth[$line_count]-intval($justify_spacewidth[$line_count]);
                             $justify_line_words_count++;
+                            $computed_spacewidth = intval($justify_spacewidth[$line_count])+intval($justify_space_buffer);
+
                             if ($this->input->getOption('verbose')){
-                                echo "space buffer ".$justify_space_buffer."\n";
-                                echo "space width ".(intval($justify_spacewidth[$line_count])+intval($justify_space_buffer))."\n";
+//                                echo "space buffer ".$justify_space_buffer."\n";
+                                echo "space width ".$computed_spacewidth."\n";
                             }
 
-                            $this->x += intval($justify_spacewidth[$line_count])+intval($justify_space_buffer);
+                            $this->x += $computed_spacewidth;
 
                             if (intval($justify_space_buffer)>0){
                                 $justify_space_buffer = $justify_space_buffer - intval($justify_space_buffer);
