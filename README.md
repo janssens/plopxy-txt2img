@@ -47,7 +47,7 @@ A json array of style parameters
 * **padding** : space between image border and text. **padding-left**, **padding-right**, **padding-to**, **padding-bottom** 
 * **max-width** : width of the output image. if font-size is not set to "fit" the content could be cropped
 * **max-height** : height of the output image. the content could be cropped.
-* **text-align** : EXPERIMENTAL, should align content LEFT or RIGHT
+* **text-align** : align content LEFT ,RIGHT or JUSTIFY. To use text-align:justify you should add the **wrap** param
 * **text-transform** : uppercase, lowercase string
 * **text-decoration** : underline, uperline or line trought
 
@@ -102,7 +102,6 @@ verbose
 * wrap on text-align right
 * Combine text-decoration
 * Support of text-align center 
-* Support of text-align justify 
 * Font-size for h1, h2 and h3
 * support list-style for ul
 * neasted UL ?!!
