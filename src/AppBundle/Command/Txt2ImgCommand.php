@@ -451,7 +451,7 @@ class Txt2ImgCommand extends Command
 						$justify_space_buffer = 0;
                         $justify_line_words_count = 0;
                         $computed_spacewidth = $spacewidth;
-                        if ($params['text-align'] == 'center')
+                        if (isset($params['text-align']) && $params['text-align'] == 'center')
                             $this->x += $center_index[$line_count];
 						foreach (explode(' ', $line) as $key => $world) {
 							$metrics = $image->queryFontMetrics($this->draw, $world);
