@@ -44,7 +44,8 @@ class Txt2ImgCommand extends Command
 		->addOption('output','o',InputOption::VALUE_OPTIONAL,'Output file','')
 		->addOption('encoding','e',InputOption::VALUE_OPTIONAL,'Encoding','UTF-8')
 		->addOption('fontSizeMax',NULL,InputOption::VALUE_OPTIONAL,'Max font size','')
-		->addOption('wrap','w',InputOption::VALUE_NONE,'should we wrap');
+		->addOption('wrap','w',InputOption::VALUE_NONE,'should we wrap')
+		->addOption('fit',NULL,InputOption::VALUE_NONE,'fit output to background-image');
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -88,7 +89,11 @@ class Txt2ImgCommand extends Command
 		$this->x = $this->minx;
 		$this->y = $this->miny;
 
-	    $text = $input->getArgument('text');
+        if (isset($this->default_params["vertical-align"])&&$this->default_params["vertical-align"]=="middle"){
+            $this->y = 0;
+        }
+
+        $text = $input->getArgument('text');
 	    if (file_exists($text)){
 	    	$filename = $text;
 			$handle = fopen($filename, "r");
@@ -109,7 +114,23 @@ class Txt2ImgCommand extends Command
 		$this->draw = new \ImagickDraw();
 
 		/* Font properties */
-		$this->draw->setGravity(\Imagick::GRAVITY_NORTHWEST);
+		if (isset($this->default_params["vertical-align"])&&isset($this->default_params["display"])){
+            switch ($this->default_params["vertical-align"]){
+                case "middle" :
+                    $this->draw->setGravity(\Imagick::GRAVITY_WEST);
+                    break;
+                case "bottom" :
+                    $this->draw->setGravity(\Imagick::GRAVITY_SOUTHWEST);
+                    break;
+                case "top" :
+                default :
+                    $this->draw->setGravity(\Imagick::GRAVITY_NORTHWEST);
+                    break;
+            }
+        }else{
+            $this->draw->setGravity(\Imagick::GRAVITY_NORTHWEST);
+        }
+
 		$this->draw->setStrokeAntialias(true);
 		$this->draw->setTextAntialias(true);
 		
@@ -127,9 +148,14 @@ class Txt2ImgCommand extends Command
 		$imagick = new \Imagick();
 		if (isset($this->default_params["background-image"])){
 			$filename = $this->default_params["background-image"];
-			if (strpos($filename, 'url(')==1)
+			if (strpos($filename, 'url(')==0)
 				$filename = substr($filename, 4,-1);
 			$imagick->readImage($filename);
+			if ($input->getOption("fit")){
+                $d = $imagick->getImageGeometry();
+                $this->maxheight = $d['height'];
+                $this->maxwidth = $d['width'];
+            }
 		}else{
 			if (isset($this->default_params['background-color']))
 				$imagick->newImage($this->maxwidth, $this->maxheight, new ImagickPixel($this->default_params['background-color']));
@@ -320,11 +346,11 @@ class Txt2ImgCommand extends Command
 				$maxw = 0;
 				if (isset($params["background-image"])){
 					$filename = $this->default_params["background-image"];
-					if (strpos($filename, 'url(')==1)
+					if (strpos($filename, 'url(')==0)
 						$filename = substr($filename, 4,-1);
 					$image = new \Imagick($filename); 
 					$d = $image->getImageGeometry(); 
-					$maxw = $d['width']; 
+					$maxw = $d['width'];
 				}else if(isset($params['max-width'])){
 					$maxw = intval($params['max-width']); 
 				}else{
@@ -337,7 +363,8 @@ class Txt2ImgCommand extends Command
 					$maxw -= intval($params["padding-left"]);
 				if ($maxw<0)
 					$maxw = 0;
-				echo "maxw : ".$maxw."\n";
+                if ($this->input->getOption('verbose'))
+    				echo "maxw : ".$maxw."\n";
 			}
 
 			foreach ($lines as $key => $line) {
@@ -379,7 +406,7 @@ class Txt2ImgCommand extends Command
 							if ($specific)
 								echo json_encode($specific);
 						}
-						if ($params['text-align'] == 'justify'||$params['text-align'] == 'center'){
+						if (isset($params['text-align'])&&($params['text-align'] == 'justify'||$params['text-align'] == 'center')){
 						    $myx = $this->minx;
 						    $justify_line_index = 0;
 						    $justify_line_words_count = 0;
