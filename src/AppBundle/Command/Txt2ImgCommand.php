@@ -16,23 +16,26 @@ use DOMNode;
 
 class Txt2ImgCommand extends Command
 {
-	private $default_params;
-	private $draw;
+	private $_params;
+	private $_draw;
 	
-	private $minx;
-	private $x;
-	private $y;
-	private $nextY;
+	private $_min_x;
+	private $_min_y;
+	private $_x;
+	private $_y;
+	private $_nextY;
+	private $_ascender;
 
-	private $maxwidth;
-	private $maxheight;
+	private $_isUl;
 
-    private $contentmaxwidth;
+	//dimentions
+	private $_width;
+	private $_height;
 
-	private $output;
-	private $input;
+    private $_content_max_width;
 
-	private $isUl;
+	private $_output;
+	private $_input;
 
 	protected function configure()
 	{
@@ -52,42 +55,44 @@ class Txt2ImgCommand extends Command
 
 	protected function execute(InputInterface $input, OutputInterface $output)
 	{
-		// TODO Justification (gauche/droite/centré)
-
-		$this->default_params = array(
+		$default_params = array(
 			'font-family' => "Times",
 			'color' => "#000000",
 			'font-size' => "20px",
 			'font-weight' => 500,
 			'padding-top' => '0px',
 			'padding-left' => '0px',
-			'font-style' => 'normal');
+			'padding-right' => '0px',
+			'padding-bottom' => '0px',
+			'font-style' => 'normal',
+			'text-align' => 'left',
+        );
 
 
-		$this->output = $output;
-		$this->input = $input;
-		$this->isUl = false;
+		$this->_output = $output;
+		$this->_input = $input;
+		$this->_isUl = false;
 
 	    $style = $input->getOption('style');
 
 	    $style = json_decode($style, true);
-	    if (is_array($style) && ($this->input->getOption('verbose')))
+        if (!is_array($style))
+            $style = array();
+	    if ($this->isVerbose())
 			$output->writeln('<info>'.json_encode($style).'</info>');
-	    if (is_array($style))
-		    $this->default_params = array_merge($this->default_params,$style);
-		if (is_array($style)){
-			if (isset($style["padding"])&&!isset($style["padding-left"]))
-				$this->default_params["padding-left"] = $style["padding"];
-			if (isset($style["padding"])&&!isset($style["padding-right"]))
-				$this->default_params["padding-right"] = $style["padding"];
-			if (isset($style["padding"])&&!isset($style["padding-top"]))
-				$this->default_params["padding-top"] = $style["padding"];
-			if (isset($style["padding"])&&!isset($style["padding-bottom"]))
-				$this->default_params["padding-bottom"] = $style["padding"];
-		}
 
-		$this->minx = intval($this->default_params['padding-left']);
-		$this->miny = intval($this->default_params['padding-top']);
+        $this->_params = array_merge($default_params,$style);
+        if (isset($style["padding"])&&!isset($style["padding-left"]))
+            $this->_params["padding-left"] = $style["padding"];
+        if (isset($style["padding"])&&!isset($style["padding-right"]))
+            $this->_params["padding-right"] = $style["padding"];
+        if (isset($style["padding"])&&!isset($style["padding-top"]))
+            $this->_params["padding-top"] = $style["padding"];
+        if (isset($style["padding"])&&!isset($style["padding-bottom"]))
+            $this->_params["padding-bottom"] = $style["padding"];
+
+		$this->_min_x = intval($this->_params['padding-left']);
+		$this->_min_y = intval($this->_params['padding-top']);
 
         $text = $input->getArgument('text');
 	    if (file_exists($text)){
@@ -100,75 +105,76 @@ class Txt2ImgCommand extends Command
 	 	if ($input->getOption('verbose'))
 	    	$output->writeln(['============','Text: '.$text]);
         $html = Markdown::defaultTransform($text);
-//        $html = str_replace("\n\n", "<br>\n", $html);
+        $html = str_replace("\n", "<br>", $html);
         if ($input->getOption('verbose'))
 	    	$output->writeln(['============','Html: '.$html,'============']);
 
 		$transparent = new ImagickPixel('none'); // Transparent
-
-
-		$this->draw = new \ImagickDraw();
+		$this->_draw = new \ImagickDraw();
 
 		/* Font properties */
-		$this->draw->setGravity(\Imagick::GRAVITY_NORTHWEST);
-
-		$this->draw->setStrokeAntialias(true);
-		$this->draw->setTextAntialias(true);
+		$this->_draw->setGravity(\Imagick::GRAVITY_NORTHWEST);
+		$this->_draw->setStrokeAntialias(true);
+		$this->_draw->setTextAntialias(true);
 		
 		$doc = new DOMDocument('1.0', $input->getOption('encoding'));
         $html = mb_convert_encoding($html, 'HTML-ENTITIES', $input->getOption('encoding'));
         $doc->loadHTML($html);
 
-		$format = $input->getOption("format");
-
-		if (isset($this->default_params["padding-right"]))
-			$this->maxwidth = $this->maxwidth + intval($this->default_params["padding-right"]);
-
-		$imagick = new \Imagick();
-		if (isset($this->default_params["background-image"])){
-			$filename = $this->default_params["background-image"];
-			if (strpos($filename, 'url(')==0)
-				$filename = substr($filename, 4,-1);
-			$imagick->readImage($filename);
-			if ($input->getOption("fit")){
+        $imagick = new \Imagick();
+        if (isset($this->_params["background-image"])){
+            $filename = $this->_params["background-image"];
+            if (strpos($filename, 'url(')==0)
+                $filename = substr($filename, 4,-1);
+            $imagick->readImage($filename);
+            if ($this->_input->getOption("fit")){
                 $d = $imagick->getImageGeometry();
-                $this->maxheight = $d['height'];
-                $this->maxwidth = $d['width'];
+                $this->_params["max-height"] = $d['height'];
+                $this->_params["max-width"] = $d['width'];
             }
-		}else{
-			if (isset($this->default_params['background-color']))
-				$imagick->newImage($this->maxwidth, $this->maxheight, new ImagickPixel($this->default_params['background-color']));
+        }
+
+        $this->_y = 0;
+
+        // DRAW TEXT :
+        $this->drawDomNode($doc);
+        // TEXT OK
+
+
+        if (isset($this->_params["max-width"]))
+            $this->_width = intval($this->_params["max-width"]);
+        if (isset($this->_params["max-height"]))
+            $this->_height = intval($this->_params["max-height"]);
+
+		if (!isset($this->_params["background-image"])){
+			if (isset($this->_params['background-color']))
+				$imagick->newImage($this->_width, $this->_height, new ImagickPixel($this->_params['background-color']));
 			else {
-				if ($format == "png")
-					$imagick->newImage($this->maxwidth, $this->maxheight, $transparent);
+				if ($this->_input->getOption("format") == "png")
+					$imagick->newImage($this->_width, $this->_height, $transparent);
 				else
-					$imagick->newImage($this->maxwidth, $this->maxheight, new ImagickPixel("#ffffff"));
+					$imagick->newImage($this->_width, $this->_height, new ImagickPixel("#ffffff"));
 			}
 			    
 	    }
-	    if (isset($this->default_params["max-width"]))
-	    	$this->maxwidth = intval($this->default_params["max-width"]);
-	    if (isset($this->default_params["max-height"]))
-	    	$this->maxheight = intval($this->default_params["max-height"]);
 
-        $this->contentmaxwidth = $this->maxwidth - intval($this->default_params["padding-right"]) - intval($this->default_params["padding-left"]);
+	    if ($this->isVerbose())
+            $this->_output->writeln("finale output is w".$this->_width." and h".$this->_height);
 
-	    $imagick->cropImage( $this->maxwidth, $this->maxheight , 0 , 0 );
-	    $imagick->setImageFormat($format);
-
-        $this->drawDomNode($doc);
-
-	    $imagick->drawImage($this->draw);
+        //crop
+	    $imagick->cropImage( $this->_width, $this->_height , 0 , 0 );
+	    $imagick->setImageFormat($this->_input->getOption("format"));
+	    $imagick->drawImage($this->_draw);
 
 	    if ($input->getOption('output')){
-	    	if (substr($input->getOption('output'), -4) == '.'.$format)
-	    		$fullpath = $input->getOption('output');
+	    	if (substr($input->getOption('output'), -4) == '.'.$this->_input->getOption("format"))
+	    		$full_path = $input->getOption('output');
 	    	else
-		    	$fullpath = $input->getOption('output').".".$format;
-			$file = fopen($fullpath,"w");
+                $full_path = $input->getOption('output').".".$this->_input->getOption("format");
+			$file = fopen($full_path,"w");
 			fwrite($file, $imagick->getImageBlob());
 			fclose($file);
-			$output->writeln('<info>Output file: '.$fullpath.'</info>');
+			$this->_output->writeln('<info>Output file: '.$full_path.'</info>');
 	    }else{
 	    	echo $imagick->getImageBlob();
 	    }
@@ -182,22 +188,19 @@ class Txt2ImgCommand extends Command
 				$this->drawDomNode($node);
 			}else{
 
-				if (!$this->isUl && strpos($node->getNodePath(),"ul")){
-					// echo "enter ul\n";
-					$this->isUl = true;
-					$this->jumpLine($this->default_params);
+				if (!$this->_isUl && strpos($node->getNodePath(),"ul")){
+					$this->_isUl = true;
+					$this->jumpLine();
 				}
-				if ($this->isUl && !strpos( $node->getNodePath(), "ul")){
-					// echo "\nleave ul\n";
-					$this->isUl = false;
-					// $this->jumpLine($this->default_params);
+				if ($this->_isUl && !strpos( $node->getNodePath(), "ul")){
+					$this->_isUl = false;
 				}
 
 				if ($node->nodeType == XML_TEXT_NODE && $node->nodeValue){
 					$parentNode = $node->parentNode->nodeName;
 					
-					if ($this->input->getOption('verbose'))
-						echo $parentNode;
+					if ($this->_input->getOption('verbose'))
+						echo "<".$parentNode.">\n";
 					$txt = $node->nodeValue;
 
 					$local_params = array();
@@ -206,18 +209,21 @@ class Txt2ImgCommand extends Command
 					if ($parentNode == "em")
 						$local_params["font-style"] = "italic";
 					if ($parentNode == "sup" || $parentNode == "sub")
-						$local_params["font-size"] = intval(intval($this->default_params["font-size"])/2)."px";
+						$local_params["font-size"] = intval(intval($this->_params["font-size"])/2)."px";
 					if ($parentNode == "li"){
 						$txt = " ".$txt;
-						$circleSize = intval(intval($this->default_params["font-size"])/10);
-						$linecenter = intval(intval($this->default_params["font-size"])/2);
-						// echo "circle(".($this->x+intval($circleSize/2)).",".($this->y+intval($circleSize/2)+$linecenter).",".($this->x+$circleSize).",".($this->y + $linecenter +$circleSize).")";
-						$this->draw->circle($this->x+intval($circleSize/2), $this->y+intval($circleSize/2)+$linecenter, $this->x+$circleSize , $this->y + $linecenter + $circleSize);
+						$circleSize = intval(intval($this->_params["font-size"])/10);
+						$line_center = intval(intval($this->_params["font-size"])/2);
+						$this->_draw->circle(
+						    $this->_x+intval($circleSize/2), 
+                            $this->_y+intval($circleSize/2)+$line_center, 
+                            $this->_x+$circleSize , 
+                            $this->_y + $line_center + $circleSize);
 					}
-					$this->drawTxt($txt,array_merge($this->default_params,$local_params));
+					$this->drawTxt($txt,array_merge($this->_params,$local_params));
 				}
 				if ($node->nodeName == "br"){
-					$this->jumpLine(array_merge($this->default_params,$local_params));
+					$this->jumpLine();
 				}
 			}
 		}
@@ -225,52 +231,53 @@ class Txt2ImgCommand extends Command
 
 	protected function drawTxt($text,$params = array()){
 		if ($text){
-			$specific = array_diff($params, $this->default_params);
+//            if ($this->isVerbose())
+//                echo "Text : $text\n";
 
-            if ($this->input->getOption('verbose')){
-                if ($specific)
-                    echo json_encode($specific);
-            }
+			$specific = array_diff($params, $this->_params);
+
+            if ($this->isVerbose()&&$specific)
+                    echo "specific : ".json_encode($specific)."\n";
 
 			$params = $this->checkParams($params);
 
 			if (isset($params['font-weight']))
-				$this->draw->setFontWeight($params["font-weight"]);
+				$this->_draw->setFontWeight($params["font-weight"]);
 
 			if (isset($params['font-family']))
-				$this->draw->setFontFamily($params["font-family"]);
+				$this->_draw->setFontFamily($params["font-family"]);
 
 			if (isset($params['font']))
-				$this->draw->setFont($params["font"]);
+				$this->_draw->setFont($params["font"]);
 
 			switch ($params['font-style']) {
 				case 'italic':
-					$this->draw->setFontStyle(\Imagick::STYLE_ITALIC);
+					$this->_draw->setFontStyle(\Imagick::STYLE_ITALIC);
 					break;
-				case 'oblic':
-					$this->draw->setFontStyle(\Imagick::STYLE_OBLIQUE);
+				case 'oblique':
+					$this->_draw->setFontStyle(\Imagick::STYLE_OBLIQUE);
 					break;
 				default:
-					$this->draw->setFontStyle(\Imagick::STYLE_NORMAL);
+					$this->_draw->setFontStyle(\Imagick::STYLE_NORMAL);
 					break;
 			}
 
 			if ($params["font-size"] != "fit")
-				$this->draw->setFontSize(intval($params["font-size"]));
+				$this->_draw->setFontSize(intval($params["font-size"]));
 
 			if (isset($params['text-decoration'])){
 				switch ($params['text-decoration']) {
 					case 'line-through':
-						$this->draw->setTextDecoration(\Imagick::DECORATION_LINETROUGH);
+						$this->_draw->setTextDecoration(\Imagick::DECORATION_LINETROUGH);
 						break;
 					case 'overline':
-						$this->draw->setTextDecoration(\Imagick::DECORATION_OVERLINE);
+						$this->_draw->setTextDecoration(\Imagick::DECORATION_OVERLINE);
 						break;
 					case 'underline':
-						$this->draw->setTextDecoration(\Imagick::DECORATION_UNDERLINE);
+						$this->_draw->setTextDecoration(\Imagick::DECORATION_UNDERLINE);
 						break;
 					default:
-						$this->draw->setTextDecoration(\Imagick::DECORATION_NO);
+						$this->_draw->setTextDecoration(\Imagick::DECORATION_NO);
 						break;
 				}
 			}			
@@ -278,17 +285,17 @@ class Txt2ImgCommand extends Command
 			if (isset($params['text-align'])){
 				switch ($params['text-align']) {
 					case 'center':
-						$this->draw->setTextDecoration(\Imagick::ALIGN_LEFT);
+						$this->_draw->setTextAlignment(\Imagick::ALIGN_LEFT);
 						break;
 					case 'right':
-						$this->draw->setTextAlignment(\Imagick::ALIGN_RIGHT);
+						$this->_draw->setTextAlignment(\Imagick::ALIGN_RIGHT);
 						break;
                     case 'justify':
-                        $this->draw->setTextAlignment(\Imagick::ALIGN_LEFT);
+                        $this->_draw->setTextAlignment(\Imagick::ALIGN_LEFT);
                         break;
 					default:
 					case 'left':
-						$this->draw->setTextDecoration(\Imagick::ALIGN_LEFT);
+						$this->_draw->setTextAlignment(\Imagick::ALIGN_LEFT);
 						break;
 				}
 			}
@@ -302,7 +309,7 @@ class Txt2ImgCommand extends Command
 						$text = strtolower($text);
 						break;
 					case 'capitalize':
-						$text = $text; //TODO implement
+						$text = ucwords($text);
 						break;
 					default:
 						break;
@@ -310,158 +317,178 @@ class Txt2ImgCommand extends Command
 			}
 
 			if (isset($params['color'])){
-				$this->draw->setFillColor(new ImagickPixel($params['color']));
-			}
-		    
-		    /* Get font metrics */
-			$image = new \Imagick();
-			$lines = explode("\n", $text);
-			
-			// var_dump($metrics); textWidth
-			if (isset($params['text-align']) && $params['text-align']=='right'){
-				foreach ($lines as $key => $line) {
-					$metrics = $image->queryFontMetrics($this->draw, $line);
-					if ( (intval($metrics["textWidth"]) + intval($params["padding-left"])) > $this->minx)
-						$this->minx = intval($metrics["textWidth"]) + intval($params["padding-left"]);
-				}
-				$this->x = $this->minx;
-				$this->maxwidth =  $this->minx + intval($params["padding-right"]);
+				$this->_draw->setFillColor(new ImagickPixel($params['color']));
 			}
 
-			if ($params["font-size"] == "fit" || $this->input->getOption('wrap')
-                || $this->default_params['text-align']=='right' || $this->default_params['text-align']=='center'
-                || $this->default_params['vertical-align']=='bottom' || $this->default_params['vertical-align']=='center' ){
-				if($this->contentmaxwidth < 1 ){
-					$this->output->writeln("<error>using fit/wrap/text-align/vetical-align you should use background-image or max-width to fix the output width</error>");
-                    die();
-				}
-                if ($this->input->getOption('verbose'))
-    				echo "contentmaxwidth : ".$this->contentmaxwidth."\n";
-			}
-
-            if ($this->default_params["font-size"] == "fit"){ //lets find the best font size
-                $textWidth = 0;
-                $font_size = 1;
-                while ($textWidth < $this->contentmaxwidth) {
-                    $font_size++;
-                    $this->draw->setFontSize($font_size);
-                    $metrics = $image->queryFontMetrics($this->draw, $lines[0]);
-                    $textWidth = $metrics["textWidth"];
-                    if ($this->input->getOption('verbose'))
-                        echo "font size = ".$font_size." text width = ".$textWidth."(max ".$this->contentmaxwidth.")\n";
-                }
-                $this->draw->setFontSize($font_size--); //SET FONT SIZE
-                if ($this->input->getOption('verbose'))
-                    $this->output->writeln("<info>best fit font size is ".$font_size."</info>");
-                if ($this->input->getOption('fontSizeMax')&& $this->input->getOption('fontSizeMax')<$font_size) {
-                    $this->draw->setFontSize($this->input->getOption('fontSizeMax'));
-                    if ($this->input->getOption('verbose'))
-                        $this->output->writeln("<info>but fontSizeMax : " . $this->input->getOption('fontSizeMax') . "</info>");
-                }
-            }else {
-                $this->draw->setFontSize(intval($params["font-size"])); //SET FONT SIZE
+            $this->_content_max_width = intval($params['max-width']) - intval($params['padding-right']) - intval($params['padding-left']);
+			if ($this->_content_max_width < 1 && $params['max-width'] > 0){
+                die("padding too big, no room for txt");
             }
 
-			$geometry = $this->computeGeometry($lines);
-            print_r($geometry);
+			$lines = explode("\n", $text);
+
+            $geometry = $this->computeGeometry($lines);
+
+            if ($this->isVerbose())
+                echo "geometry : ".json_encode($geometry)."\n";
+
             $justify_space_width = $geometry['justify_space_width'];
-//            $fit_font_size = $geometry['fit_font_size']; //TODO multiline font fit
+            $fit_font_size = $geometry['fit_font_size'];
             $center_x_index = $geometry['center_x_index'];
             $text_total_height = $geometry['text_total_height'];
+//            $text_true_height = $geometry['text_true_height'];
             $line_height = $geometry['line_height'];
+            $y_jump = $geometry['y_jump'];
 
-            $this->y = 0;
-            $this->x = 0;
-
-            if ($this->default_params['vertical-align']=="bottom"){
-                $this->y = ($this->maxheight - intval($this->default_params['padding-bottom'])) - $text_total_height;
-                $this->miny = 0;
-            }else{
-                $this->miny += $line_height;
+            if ($this->_y == 0){
+                $this->_y = $this->_min_y;
+                if ($params['vertical-align']=="bottom"){
+                    $this->_y = intval($params['max-height']) - intval($params['padding-bottom']) - $text_total_height;
+                }else if ($params['vertical-align']=="middle"){
+                    $top_space = $params['max-height'] - $params['padding-top'] - $params['padding-bottom'] - $text_total_height;
+                    if ($top_space>0){
+                        $this->_y += intval($top_space/2);
+                    }
+                }
             }
 
+            $this->_x = $this->_min_x;
+
+            //$this->point($this->_x,$this->_y);
+
             $line_count = 0;
-            $this->nextY = $line_height;
+            $this->_nextY = $line_height;
+
+            $image = new \Imagick();
 
 			foreach ($lines as $key => $line) {
+                $this->_draw->setFontSize($fit_font_size[$line_count]); //SET FONT SIZE
+                if (isset($y_jump[$line_count]))
+                    $this->_nextY = $y_jump[$line_count];
 				if ($key > 0) //jump line
-					$this->jumpLine($params);
+                    $this->jumpLine($params);
+
 				if ($line){ //something to draw
-                    $this->x = 0;
-                    if ($this->default_params['text-align'] == 'center')
-                        $this->x += $center_x_index[$line_count];
-                    $this->point($this->minx + $this->x,$this->miny + $this->y);
+                    //x
+                    $this->_x = $this->_min_x;
+                    if ($params['text-align'] == 'center')
+                        $this->_x += $center_x_index[$line_count];
+                    if ($params['text-align'] == 'right')
+                        $this->_x += 2*$center_x_index[$line_count];
                     //for each line
                     foreach (explode(' ', $line) as $key => $world) {
-                        $metrics = $image->queryFontMetrics($this->draw, $world);
-                        if ($this->input->getOption("wrap")){ //do we have to deal with overflow ?
-                            $max = $this->contentmaxwidth + $justify_space_width[$line_count] + 1;
-                            if ($this->x + intval($metrics["textWidth"]) > $max){
-                                if ($this->input->getOption('verbose')){
-                                    echo "   >>>   Overflow, jumpLine (".($this->x + intval($metrics["textWidth"])).">".($max).")\n";
+                        if (!isset($justify_space_width[$line_count]))
+                            $justify_space_width[$line_count] = $justify_space_width[$line_count-1];
+                        if ($key > 0)
+                            $this->_x += $justify_space_width[$line_count];
+                        $metrics = $image->queryFontMetrics($this->_draw, $world);
+                        $this->_ascender = $metrics['ascender'];
+                        if ($this->_input->getOption("wrap")){ //do we have to deal with overflow ?
+                            $max = $this->_content_max_width + $this->_min_x;
+                            if ($this->_x + intval($metrics["textWidth"]) > $max){
+                                if ($this->isVerbose()){
+                                    echo "   >>>   Overflow, jumpLine (".($this->_x + intval($metrics["textWidth"])).">".($max).")\n";
                                 }
                                 $this->jumpLine($params);
                                 $line_count++;
-                                $this->x = 0;
-                                if ($this->default_params['text-align'] == 'center')
-                                    $this->x += $center_x_index[$line_count];
+                                $this->_x = $this->_min_x;
+                                if ($params['text-align'] == 'center')
+                                    $this->_x += $center_x_index[$line_count];
+                                if ($params['text-align'] == 'right')
+                                    $this->_x += 2*$center_x_index[$line_count];
                             }
                         }
-                        $this->draw->annotation($this->minx + $this->x , $this->miny + $this->y, $world); // WRITING
-                        if ($this->input->getOption('verbose')){
+                        //
+                        // WRITING WORD
+                        $this->_draw->annotation($this->_x , $this->_y + $this->_ascender, $world);
+                        //
+                        //
+                        if ($this->isVerbose()){
                             echo $world;
-                            echo " > at ".($this->minx + $this->x)." ".($this->miny + $this->y)."\n";
+                            echo " > at (".($this->_x).",".($this->_y).") (w".intval($metrics["textWidth"]).")\n";
                         }
-                        $this->x += intval($metrics["textWidth"]);
-                        if (!isset($justify_space_width[$line_count]))
-                            $justify_space_width[$line_count] = $justify_space_width[$line_count-1];
-                        $this->x += $justify_space_width[$line_count];
+                        $this->_x += intval($metrics["textWidth"]);
                     }
 				}
-				if (!$this->isSizeFixed()){
-					if ($this->x > $this->maxwidth)
-						$this->maxwidth = $this->x;
-                    if (($this->y + $this->nextY) > $this->maxheight) //push bottom
-                        $this->maxheight = $this->y + $this->nextY;
-				}
+                if ($this->_x > $this->_width)
+						$this->_width = $this->_x;
+                if ($this->_y > $this->_height)
+                    $this->_height = $this->_y;
 				$line_count++;
 			}
-		}
+		}//if text
+        $this->_height += $this->_ascender + intval($this->_params["padding-bottom"]);
+        $this->_width += intval($this->_params["padding-right"]);
+//        if ($this->_height < $text_true_height)
+//            $this->_height = $text_true_height;
+
 	}
 
 	protected function isSizeFixed(){
-	    return ((isset($this->default_params["max-width"]))||(isset($this->default_params["max-height"]))||(isset($this->default_params["background-image"])&&$this->input->getOption('fit')));
+	    return ((isset($this->_params["max-width"]))||(isset($this->_params["max-height"]))||(isset($this->_params["background-image"])&&$this->_input->getOption('fit')));
     }
 
     protected function point($x,$y){
-        $backupColor = $this->draw->getStrokeColor();
-        $this->draw->setStrokeColor("red");
-        $this->draw->line($x-5,$y,$x+5,$y);
-        $this->draw->line($x,$y-5,$x,$y+5);
-        $this->draw->setStrokeColor($backupColor);
+        $backupColor = $this->_draw->getStrokeColor();
+        $this->_draw->setStrokeColor("red");
+        $this->_draw->line($x-5,$y,$x+5,$y);
+        $this->_draw->line($x,$y-5,$x,$y+5);
+        $this->_draw->setStrokeColor($backupColor);
     }
 
 	protected function checkParams($params){
 		if (isset($params['font-weight'])){
 			if (!is_int($params['font-weight'])){
-				$this->output->writeln("font-weight should be a integer 100-900. using 500.");
+				$this->_output->writeln("font-weight should be a integer 100-900. using 500.");
 				$params['font-weight'] = 500;
 			} else if ($params['font-weight'] > 900 || $params['font-weight'] < 100) {
-				$this->output->writeln("font-weight should be a integer 100-900. using 500.");
+				$this->_output->writeln("font-weight should be a integer 100-900. using 500.");
 				$params['font-weight'] = 500;
 			}
 		}
 		if (isset($params['font-size'])){
 			
 		}
+
+		if (isset($params['vertical-align'])){
+            if ($params['vertical-align'] == "bottom" || $params['vertical-align'] == "center"){
+                if( ! isset($params['max-height']) || $params['max-height'] < 1 ){
+                    $this->_output->writeln("<error>using vetical-align you should use background-image or max-height to fix the output height</error>");
+                    die();
+                }
+            }
+        }else{
+            $params['vertical-align'] = 'top';
+        }
+
+        if (   $params["font-size"] == "fit"
+            || $this->_input->getOption('wrap')
+            || $params['text-align']=='right'
+            || $params['text-align']=='center'
+            || $params['vertical-align']=='bottom'
+            || $params['vertical-align']=='center' ){
+
+		    if( ! isset($params['max-width']) || $params['max-width'] < 1 ){
+                $this->_output->writeln("<error>using fit/wrap/text-align you should use background-image or max-width to fix the output width</error>");
+                die();
+            }
+
+        }else if(!isset($params['max-width']) ){
+            $params['max-width'] = 0;
+        }
+        if ( $this->_input->getOption('wrap') && $params["font-size"] == "fit" ){
+            $this->_output->writeln("<error>You cannot use booth wrap and font-size : fit</error>");
+            die();
+        }
 		return $params;
 	} 
 
-	protected function jumpLine($params){
-		if (isset($params['line-height']))
-			$this->y = $this->y +  str_replace("px", "", $params['line-height']);
-		else
-			$this->y = $this->y +  $this->nextY;
+	protected function jumpLine(){
+        if (isset($this->_params['line-height']))
+            $this->_nextY = intval($this->_params['line-height']);
+        if ($this->isVerbose())
+            echo "[[ jump line ]] ".$this->_nextY."\n";
+        $this->_y +=  $this->_nextY;
 	}
 
 	protected function computeGeometry($lines){
@@ -473,30 +500,42 @@ class Txt2ImgCommand extends Command
         $text_total_height = 0;
         $center_x_index = array();
         $center_line_total_length = 0;
+        $fit_font_size = array();
+        $y_jump = array();
 
         $image = new \Imagick();
 
-        $metrics = $image->queryFontMetrics($this->draw, " "); //space metrics
+        $metrics = $image->queryFontMetrics($this->_draw, " "); //space metrics
         $space_width = $metrics['textWidth'];
         $line_height = $metrics['characterHeight'];
 
+        $last_line = $lines[count($lines)-1];
+        $first_line = $lines[0];
+
         foreach ($lines as $key => $line){ //foreach line
             $text_total_height += $line_height;
+            $center_line_total_length = 0;
             foreach (explode(' ', $line) as $key => $word) { //foreach word
-                $metrics = $image->queryFontMetrics($this->draw, $word); //word metrics
-                if ($this->input->getOption('wrap')){ //if we take care of overflow
-                    if ($index_x + intval($metrics["textWidth"]) > $this->contentmaxwidth ){ //overflow
-                        if ($this->default_params['text-align'] == 'justify')
-                            $justify_space_width[$justify_line_index] = intval(($this->contentmaxwidth - $justify_line_words_total_length) / ($justify_line_words_count - 1));
+//                echo "$word (".$metrics["textWidth"].") at ".$index_x." \n";
+                $metrics = $image->queryFontMetrics($this->_draw, $word); //word metrics
+                if ($this->_input->getOption('wrap')){ //if we take care of overflow
+                    if ($index_x + intval($metrics["textWidth"]) > $this->_content_max_width ){ //overflow
+//                        echo " >> overflow >> ";
+//                        echo $center_line_total_length;
+//                        echo " >> ";
+                        if ($this->_params['text-align'] == 'justify')
+                            $justify_space_width[$justify_line_index] = intval(($this->_content_max_width - $justify_line_words_total_length) / ($justify_line_words_count - 1));
                         else
                             $justify_space_width[$justify_line_index] = $space_width;
-                        $center_x_index[$justify_line_index] = intval(($this->contentmaxwidth - $center_line_total_length) / 2);
+                        $center_x_index[$justify_line_index] = intval(($this->_content_max_width - $center_line_total_length) / 2);
+//                        echo $center_x_index[$justify_line_index]."\n";
+                        $fit_font_size[$justify_line_index] = $this->_draw->getFontSize();
                         $index_x = 0;
-
                         $text_total_height += $line_height;
                         $justify_line_index++;
                         $justify_line_words_total_length = 0;
                         $justify_line_words_count = 0;
+                        $center_line_total_length = 0;
                     }
                 }
                 $index_x += intval($metrics["textWidth"]) + $space_width;
@@ -504,16 +543,59 @@ class Txt2ImgCommand extends Command
                 $justify_line_words_total_length += intval($metrics["textWidth"]);
                 $center_line_total_length += intval($metrics["textWidth"]) + $space_width;
             }
+            if ($this->_params["font-size"] == "fit"){
+                $textWidth = 0;
+                $font_size = 1;
+                while ($textWidth < $this->_content_max_width) {
+                    $font_size++;
+                    $this->_draw->setFontSize($font_size);
+                    $metrics = $image->queryFontMetrics($this->_draw, $line);
+                    $textWidth = $metrics["textWidth"];
+                    if ($this->isVerbose())
+                        echo "font size = ".$font_size." text width = ".$textWidth."(max ".$this->_content_max_width.")\n";
+                }
+                $fit_font_size[$justify_line_index] = $font_size--; //SET FONT SIZE
+                $this->_draw->setFontSize($font_size);
+                $metrics = $image->queryFontMetrics($this->_draw, $line);
+                $y_jump[$justify_line_index] = $metrics["characterHeight"];
+                $metrics = $image->queryFontMetrics($this->_draw, " "); //space metrics
+                $justify_space_width[$justify_line_index] = $metrics['textWidth'];
+                if ($this->isVerbose())
+                    $this->_output->writeln("<info>best fit font size is ".$font_size."</info>");
+                if ($this->_input->getOption('fontSizeMax')&& $this->_input->getOption('fontSizeMax')<$font_size) {
+                    $fit_font_size[$justify_line_index] = intval($this->_input->getOption('fontSizeMax'));
+                    if ($this->isVerbose())
+                        $this->_output->writeln("<info>but fontSizeMax : " . $this->_input->getOption('fontSizeMax') . "</info>");
+                }
+            }else{
+                if (!isset($fit_font_size[$justify_line_index]))
+                    $fit_font_size[$justify_line_index] = $this->_draw->getFontSize();
+                $y_jump[$justify_line_index] = $line_height;
+            }
+            if (!isset($justify_space_width[$justify_line_index]))
+                $justify_space_width[$justify_line_index] = $space_width;
         }
-        $center_x_index[$justify_line_index] = intval(($this->contentmaxwidth - $center_line_total_length) / 2);
+        if (!isset($center_x_index[$justify_line_index]))
+            $center_x_index[$justify_line_index] = intval(($this->_content_max_width - $center_line_total_length) / 2);
         //$justify_space_width[$justify_line_index+1] = $space_width;
 
         $geometry = array();
         $geometry['justify_space_width'] = $justify_space_width;
-        $geometry['center_x_index'] = $justify_space_width;
+        $geometry['center_x_index'] = $center_x_index;
         $geometry['text_total_height'] = $text_total_height;
+        $metrics_first_line = $image->queryFontMetrics($this->_draw, $first_line);
+        $metrics_last_line = $image->queryFontMetrics($this->_draw, $last_line);
+        $first_line_height = $metrics_first_line["boundingBox"]["y2"] - $metrics_first_line["boundingBox"]["y1"];
+        $last_line_height = $metrics_last_line["boundingBox"]["y2"] - $metrics_last_line["boundingBox"]["y1"];
+        $geometry['text_true_height'] = $text_total_height-2*$line_height+$first_line_height+$last_line_height;
         $geometry['line_height'] = $line_height;
+        $geometry['fit_font_size'] = $fit_font_size;
+        $geometry['y_jump'] = $y_jump;
 
         return $geometry;
+    }
+
+    protected function isVerbose(){
+        return $this->_input->getOption('verbose');
     }
 }

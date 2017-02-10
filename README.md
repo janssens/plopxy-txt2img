@@ -14,7 +14,7 @@
 
 ##Usage
 
-	$ sh text2img.sh [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [-w|--wrap] [--] <text>
+	$ sh txt2img.sh [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [-w|--wrap] [--] <text>
 OR
 
 	$ php application.php text2img [-s|--style [STYLE]] [-f|--format [FORMAT]] [-o|--output [OUTPUT]] [--fontSizeMax [FONTSIZEMAX]] [-w|--wrap] [--] <text>
@@ -53,11 +53,11 @@ A json array of style parameters
 
 ####exemples
 
-	$ sh txt2img.sh Plopxy-Txt2img -s '{"color":"purple","font":"doc/font/beyond_the_mountains.ttf","font-size":"60px","padding-top":"20px"}' -o doc/images/font
+	$ sh txt2img.sh Plopxy-Txt2img -s '{"color":"purple","font":"doc/font/beyond_the_mountains.ttf","font-size":"60px","padding":"20px"}' -o doc/images/font
 
 ![Plopxy-Txt2img](doc/images/font.png)
 
-	$ sh txt2img.sh "best fit<br>multiple lines" -s '{"color":"white","background-color":"red","padding":"10px","text-transform":"uppercase","font-size":"fit","max-width":"200px","font-family":"Helvetica"}' -o doc/images/bestfit
+    $ sh txt2img.sh "best fit<br>multiple lines" -s '{"color":"white","background-color":"red","padding":"10px","text-transform":"uppercase","font-size":"fit","max-width":"200px","font-family":"Helvetica"}' -o doc/images/bestfit
 
 ![bestfit](doc/images/bestfit.png)
 
@@ -70,28 +70,34 @@ If set, text will be wrapped, meaning automatic line return preventing word crop
 
 ![textwap](doc/images/wrap.png)
 
-    $ sh txt2img.sh doc/fauxtxt.md -s '{"max-width":300,"padding":"10px","padding-top":"20px","text-align":"justify"}' -o doc/images/justify.png -w 
+    $ sh txt2img.sh doc/fauxtxt.md -s '{"max-width":300,"padding":"10px","text-align":"justify"}' -o doc/images/justify.png -w 
 
 ![justify](doc/images/justify.png)
 
-    $ sh txt2img.sh -v doc/fauxtxt.md -o doc/images/center.png -s '{"max-width":300,"padding":"10px","padding-top":"20px","text-align":"center","background-color":"black","color":"white"}' -w
+    $ sh txt2img.sh -v doc/fauxtxt.md -o doc/images/center.png -s '{"max-width":300,"padding":"10px","text-align":"center","background-color":"black","color":"white"}' -w
     
 ![center](doc/images/center.png)
+
+###[vertical-align]
+
+    $ sh txt2img.sh -v doc/oneblock.md -o doc/images/valignbottom.png -s '{"max-width":300,"max-height":"300px","padding":"10px","vertical-align":"bottom","background-color":"black","color":"white"}' -w
+
+![valignbottom](doc/images/valignbottom.png)
 
 ###[OUTPUT]
 
 Set the output file. If no extension is given, or if the given is not matching format, it will be added.
 If no output is given, image is returned to standard output.
 
-	$ sh text2imag.sh "image png" > /tmp/image.png
-	$ sh text2imag.sh "image png" -o /tmp/image.png
+	$ sh txt2img.sh "image png" > /tmp/image.png
+	$ sh txt2img.sh "image png" -o /tmp/image.png
 
 
 ###[FORMAT]
 
 Default is png, can be set to jpg or gif
 
-	$ sh text2img.sh "test gif" -f gif -o web/images/tmp
+	$ sh txt2img.sh "test gif" -f gif -o web/images/tmp
 	Output file: web/images/tmp.gif
 
 
